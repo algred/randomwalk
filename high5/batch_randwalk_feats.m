@@ -6,7 +6,7 @@ init_high5;
 %
 % ==========================================================================
 train_idx = find(used_for_training > 0);
-radius = 3;
+radius = 2;
 randw_params.subgraph_radius = radius;
 randw_params.code_score_thresh = 0.2;
 randw_params.pooling_mode = 2;
@@ -20,8 +20,13 @@ for cid = 1:4
         G1 = (G >= 6);
         G(G1(:)) = G(G1(:)) - 2; 
         
-        tic; [node_feats, edge_feats, node_weights, edge_weights] = ...
-            randwalk_feats(graph.RS, graph.PS, G,  randw_params); toc;
+        tic; [node_weights, edge_weights] = random_walk_weights(...
+            G, randw_params.subgraph_radius); toc;
+        
+        tic; [node_feats, edge_feats] = ...
+            randwalk_feats(graph.RS, graph.PS, G, ...
+            randw_params, node_weights, edge_weights); toc;
+        
         save_randwalk_feats([randw_feat_path filesep num2str(cid) ... 
             '_' num2str(vid) '_' num2str(radius) '_rf.mat'], ...
             node_feats, edge_feats, node_weights, edge_weights);
