@@ -32,7 +32,8 @@ graph_params.tovlp_thre = 3;
 graph_params.sovlp_thre = 0.6;
 graph_params.tbefore_thre = 3;
 graph_params.sabove_thre = 20;
-graph_params.redundant_thre = 0.6;
+graph_params.redundant_thre = 0.75;
+graph_params.neighbor_K = 6;
 
 randw_params.edge_type_count = 6;
 %==========================================================================

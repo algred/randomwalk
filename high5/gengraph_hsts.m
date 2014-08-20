@@ -1,6 +1,4 @@
-function [RS, PS, G, GT, GS] = gengraph_hsts(S, Fr, Fp, ...
-            root_model, part_model, scale, params)
-        
+function [G, GT, GS] = gengraph_hsts(S, params)        
 % Generate a space-time graph given a set of space-time segments of a
 % video.
 % Input:
@@ -19,50 +17,108 @@ function [RS, PS, G, GT, GS] = gengraph_hsts(S, Fr, Fp, ...
 %           Values for ES(i, j) are ABOVE(1), BELOW(-1), OVERLAP(2),
 %           NO-EDGE(0).
 %
-% Edge labels:
-%   params.BEFORE, params.OVERLAP, params.ABOVE
-%
-% Note in this version:
-%
-% 1) Each node should not be above / below / overlap / befor / after more than
-%    1 other nodes that have the same label.
-% 2) No edges between parts that are not overlap in time.
-% 3) BEFORE is measured by the starting frame of a space-time segment.
-% 4) Time label is always assigned to an edge.
-%
-% Author: Shugao Ma, 1/21/2014
-%
-% Difference with graphgen6
-% 1. params.top_label_num is not used to limit the possible labels a
-%    space-time segment.
-%
-% 2. Each node is allowed to be above / below / overlap / befor / after
-%    more than 1 other nodes that have the same label.
-%
-%3. The output is different to save space.
+% Author: Shugao Ma, 8/20/2014
 
 n = length(S);
-RS = []; PS = [];
+LARGE_NUM = 10^4;
 
-if ~isempty(Fr)
-    RS = Fr * root_model.Ws + repmat([root_model.bs(:)]', size(Fr, 1), 1);
-    RS = exp(RS) ./ repmat(scale(1:size(RS, 2)), size(RS, 1), 1);
+% Computes the overlap ratios and distances among the segments.
+R = zeros(n);
+T = zeros(n);
+D = ones(n) * LARGE_NUM;
+Dy = D;
+for i = 1 : n - 1 
+    for j = i + 1 : n
+        if S(i).isRoot == S(j).isRoot
+            R(i, j) = compute_overlap(S(i), S(j));
+            R(j, i) = R(i, j);
+        end
+    
+        T(i, j) = min(S(i).end, S(j).end) - max(S(i).start, S(j).start);
+        T(j, i) = T(i, j);
+        
+        if T(i, j) > params.tovlp_thre
+            [D(i, j), Dy(i, j)] =  compute_distance(S(i), S(j));
+            D(j, i) = D(i, j);
+            Dy(j, i) = -1 * Dy(i, j);
+        end
+    end
 end
 
-if ~isempty(Fp)
-    PS = Fp * part_model.Ws + repmat([part_model.bs(:)]', size(Fp, 1), 1);
-    PS = exp(PS) ./ repmat(scale(size(RS, 2)+1:end), size(PS, 1), 1);
+% Computes graph edge labels. Each segment is connected to the top K
+% nearest non-redundant segments.
+G = zeros(n); GT = zeros(n); GS = zeros(n);
+for i = 1 : n
+    idx = setdiff(find(R(i, :) <= params.redundant_thre & ...
+        T(i, :) > params.tovlp_thre), i);
+    a = params.neighbor_K - length(idx);
+    
+    if a > 0
+        idx1 = setdiff(find(R(i, :) <= params.redundant_thre & ...
+            T(i, :) <= params.tovlp_thre), i);
+        [~, ix] = sort(abs([S(idx1).start] - S(i).start), 'ascend'); 
+        idx = [idx idx1(ix(1 : min(length(idx1), a)))];
+    elseif a < 0
+        [~, ix] = sort(D(i, idx), 'ascend');
+        idx = idx(ix(1 : params.neighbor_K));
+    end
+    
+    for z = 1 : length(idx)
+        j = idx(z);
+        [G(i, j), G(j, i), GT(i, j), GT(j, i), GS(i, j), GS(j, i)] = ...
+            connect_nodes(S(i), S(j), T(i, j), Dy(i, j), params);
+    end
 end
 
-for i = 1:n-1
-  for j = i+1:n
-    [G(i, j), G(j, i), GT(i, j), GT(j, i), GS(i, j), GS(j, i)] = connect_nodes(S(i), S(j), params);
-  end
 end
 
+%==========================================================================
+% Computes overlap among segments.
+%==========================================================================
+function r = compute_overlap(s1, s2)
+volumn_s1 = sum(s1.bbox(:, 3) .* s1.bbox(:, 4));
+volumn_s2 = sum(s2.bbox(:, 3) .* s2.bbox(:, 4));
+tstart = max(s1.start, s2.start);
+tend = min(s1.end, s2.end);
+
+if tend - tstart >= 1
+    s1_com_bbox = s1.bbox((tstart - s1.start + 1) : ...
+        (tstart - s1.start + 1) + (tend - tstart), :);
+    s2_com_bbox = s2.bbox((tstart - s2.start + 1) : ...
+        (tstart - s2.start + 1) + (tend - tstart), :);
+    volumn_int = sum(diag(rectint(s1_com_bbox, s2_com_bbox)));
+else
+    volumn_int = 0;
 end
 
-function [e12, e21, t12, t21, s12, s21] = connect_nodes(s1, s2, params)
+r = volumn_int / (volumn_s1 + volumn_s2 - volumn_int);
+end
+
+%==========================================================================
+% Computes the spatial distance of two overlapping segments.
+%==========================================================================
+function [d, dy] = compute_distance(s1, s2)
+tstart = max(s1.start, s2.start);
+tend = min(s1.end, s2.end);
+s1_com_bbox = s1.bbox((tstart - s1.start + 1) : ...
+    (tstart - s1.start + 1) + (tend - tstart), :);
+s2_com_bbox = s2.bbox((tstart - s2.start + 1) : ...
+    (tstart - s2.start + 1) + (tend - tstart), :);
+y1 = mean(s1_com_bbox(1, 2) + s1_com_bbox(1, 4) / 2, 1);
+y2 = mean(s2_com_bbox(1, 2) + s2_com_bbox(1, 4) / 2, 1);
+x1 = mean(s1_com_bbox(1, 1) + s1_com_bbox(1, 3) / 2, 1);
+x2 = mean(s2_com_bbox(1, 1) + s2_com_bbox(1, 3) / 2, 1);
+dx = x1 - x2;
+dy = y1 - y2;
+d = sqrt(dx^2 + dy^2);
+end
+
+%==========================================================================
+% Computes the edge label between two segments.
+%==========================================================================
+function [e12, e21, t12, t21, s12, s21] = connect_nodes(...
+    s1, s2, tvlp, dy, params)
+
 e12 = 0; e21 = 0;
 t12 = 0; t21 = 0;
 s12 = 0; s21 = 0;
@@ -73,6 +129,7 @@ if s1.start > s2.start
     tmp = s1;
     s1 = s2;
     s2 = tmp;
+    dy = -1 * dy;
     swapped = 1;
 end
 
@@ -81,37 +138,14 @@ if s1.tid ~= s2.tid && (s1.isRoot < 1 || s2.isRoot < 1)
     return;
 end
 
-% No edges between redundant space-time segments.
-volumn_s1 = sum(s1.bbox(:, 3) .* s1.bbox(:, 4));
-volumn_s2 = sum(s2.bbox(:, 3) .* s2.bbox(:, 4));
-
-tstart = max(s1.start, s2.start);
-tend = min(s1.end, s2.end);
-if tend - tstart >= 1
-    s1_com_bbox = s1.bbox((tstart - s1.start + 1) : (tstart - s1.start + 1) + (tend - tstart), :);
-    s2_com_bbox = s2.bbox((tstart - s2.start + 1) : (tstart - s2.start + 1) + (tend - tstart), :);
-    volumn_int = sum(diag(rectint(s1_com_bbox, s2_com_bbox)));
-else
-    volumn_int = 0;
-end
-
-if volumn_int / (volumn_s1 + volumn_s2 - volumn_int) > params.redundant_thre
-    return;
-end
-
 % Assigns label to edges.
-if (tend - tstart) < params.tovlp_thre
-    % Assigns only time label if two segments are not significantly overlap in time.
+if tvlp < params.tovlp_thre
     e12 = params.BEFORE;
     e21 = -1 * params.BEFORE;
     t12 = 1; t21 = -1;
     s12 = 0; s21 = 0;
 else
-    % Assigns both time and space label if s1 and s2 overlap in time and
-    % their start times are significantly different.
-    y1 = mean(s1_com_bbox(1, 2) + s1_com_bbox(1, 4) / 2, 1);
-    y2 = mean(s2_com_bbox(1, 2) + s2_com_bbox(1, 4) / 2, 1);
-    if abs(y1 - y2) <= params.sabove_thre
+    if abs(dy) <= params.sabove_thre
         if s2.start - s1.start >= params.tbefore_thre
             e12 = params.BEFORE_OVERLAP;
             e21 = -1 * params.BEFORE_OVERLAP;
@@ -124,7 +158,7 @@ else
             s12 = 2; s21 = 2;
         end
     else
-        if y1 < y2
+        if dy < 0
             if s2.start - s1.start >= params.tbefore_thre
                 e12 = params.BEFORE_ABOVE;
                 e21 = -1 * params.BEFORE_ABOVE;
