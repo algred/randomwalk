@@ -85,8 +85,8 @@ if tend - tstart >= 1
     s1_com_bbox = s1.bbox((tstart - s1.start + 1) : ...
         (tstart - s1.start + 1) + (tend - tstart), :);
     s2_com_bbox = s2.bbox((tstart - s2.start + 1) : ...
-        (tstart - s2.start + 1) + (tend - tstart), :);
-    volumn_int = sum(diag(rectint(s1_com_bbox, s2_com_bbox)));
+        (tstart - s2.start + 1) + (tend - tstart), :); 
+    volumn_int = sum(rectint2(s1_com_bbox, s2_com_bbox));
 else
     volumn_int = 0;
 end

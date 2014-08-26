@@ -1,0 +1,31 @@
+function count = edge_code_counts(G, RS, PS)
+% Counts the appearance times of different edge codes.
+% Note an edge code is a tuple (
+[n1, cr] = size(RS);
+[n2, cp] = size(PS);
+[e1, e2] = find(G > 0);
+edge_count = length(e1);
+edge_type_count = length(params.edge_types);
+edge_type_idx(params.edge_types) = 1 : edge_type_count;
+
+% For each node, finds the code words scored higher than threshold.
+CI = cell(node_count, 1); 
+for i = 1:n1
+    CI{i} = find(RS(i, :) > params.code_score_thresh);
+end
+for i = n1 + 1 : n1 + n2
+    CI{i} = find(PS(i - n1, :) > params.code_score_thresh) + cr;
+end
+
+for i = 1 : edge_count
+    ei = edge_type_idx(abs(G(e1(i), e2(i))));  
+    [X, Y] = meshgrid(CI{e1(i)}, CI{e2(i)});
+    Z = sub2ind([code_count, code_count], X(:), Y(:));
+    idx = ind + [1 : length(Z)];
+    col_idx(idx) = Z(:) + (ei - 1) * m;
+    row_idx(idx) = ones(length(idx), 1) * i;
+    edge_score(idx) = min(S(e1(i), X(:)), S(e2(i), Y(:)));
+    ind = ind + length(idx);
+end
+
+end

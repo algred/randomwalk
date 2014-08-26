@@ -1,4 +1,6 @@
 function [node_weights, edge_weights] = random_walk_weights(G, scale)
+% WITH BUG AND NOT FINISHED.
+%
 % Computes random walk weights for subgraphs that centered on graph nodes. 
 % 
 % Inputs:
@@ -27,8 +29,8 @@ node_idxy = cell(n, 1);
 edge_val = cell(n, 1);
 edge_idxx = cell(n, 1);
 edge_idxy = cell(n, 1);
-fprintf('Computing randomwalk weights...');
-fprintf('node num = %d, edge num = %d\n', n, m);
+% fprintf('Computing randomwalk weights...');
+% fprintf('node num = %d, edge num = %d\n', n, m);
 for i = 1:n
     flg = (D(i, :) <= scale);
     idx = find(flg);
