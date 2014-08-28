@@ -1,11 +1,8 @@
-function [node_feats, edge_feats, node_weights, edge_weights] = ...
-    randwalk_feats(RS, PS, G,  params, node_weights, edge_weights)
+function [node_feats, edge_feats] = randwalk_feats(S, G, ...
+    node_weights, edge_weights, edge_code_idx, params)
 % Generate feature vectors from subgraphs centered on each graph node.
-[n1, cr] = size(RS);
-[n2, cp] = size(PS);
-S = [RS zeros(n1, cp); zeros(n2, cr) PS];
-node_count = n1 + n2;
-code_count = cr + cp;
+
+[node_count, code_count] = size(S);
 m = code_count * code_count;
 [e1, e2] = find(G > 0);
 edge_count = length(e1);
@@ -20,17 +17,13 @@ end
 
 % For each node, finds the code words scored higher than threshold.
 CI = cell(node_count, 1); 
-for i = 1:n1
-    CI{i} = find(RS(i, :) > params.code_score_thresh);
-end
-for i = n1 + 1 : n1 + n2
-    CI{i} = find(PS(i - n1, :) > params.code_score_thresh) + cr;
+for i = 1 : node_count
+    CI{i} = find(S(i, :) > params.code_score_thresh);
 end
 
 % Computes edge scores. ES is #edge_count * #edge_codes.
-a = sum(max(RS > params.code_score_thresh, [], 1));
-b = sum(max(PS > params.code_score_thresh, [], 1));
-c = max([a * b, a * a, b * b]);
+a = sum(max(S > params.code_score_thresh, [], 1));
+c = a * a;
 row_idx = zeros(edge_count * c, 1);
 col_idx = zeros(edge_count * c, 1);
 edge_score = zeros(edge_count * c, 1);
@@ -39,10 +32,14 @@ for i = 1 : edge_count
     ei = edge_type_idx(abs(G(e1(i), e2(i))));  
     [X, Y] = meshgrid(CI{e1(i)}, CI{e2(i)});
     Z = sub2ind([code_count, code_count], X(:), Y(:));
-    idx = ind + [1 : length(Z)];
-    col_idx(idx) = Z(:) + (ei - 1) * m;
+    [~, ia, ib] = intersect(edge_code_idx, Z + (ei - 1) * m);
+    if isempty(ia)
+        continue;
+    end
+    idx = ind + [1 : length(ia)];
+    col_idx(idx) = ia(:);
     row_idx(idx) = ones(length(idx), 1) * i;
-    edge_score(idx) = min(S(e1(i), X(:)), S(e2(i), Y(:)));
+    edge_score(idx) = min(S(e1(i), X(ib)), S(e2(i), Y(ib)));
     ind = ind + length(idx);
 end
 if ind < length(row_idx)
@@ -50,14 +47,12 @@ if ind < length(row_idx)
     col_idx(ind + 1 : end) = [];
     edge_score(ind + 1 : end) = [];
 end
-ES = sparse(col_idx, row_idx, edge_score, ...
-    edge_count, m * params.edge_type_count);
+ES = sparse(row_idx, col_idx, edge_score, ...
+    edge_count, length(edge_code_idx));
 
 % Generates feature vector for each subgraph.
 node_feats = zeros(node_count, code_count);
-row_idx = zeros(node_count * (code_count + c), 1);
-col_idx = row_idx; 
-vals = row_idx;
+edge_feats = zeros(node_count, length(edge_code_idx));
 for i = 1:node_count
     flg = node_weights(i, :) > 0;
     if sum(flg) < 2
@@ -70,29 +65,10 @@ for i = 1:node_count
     if ~any(flg2)
         continue;
     end
-    edge_feat = weighted_pooling(...
-        ES(flg2, :), edge_weights(i, flg2), params.pooling_mode);
-    
-    Z = find(edge_feat);
-    idx = ind + [1 : length(Z)]';
-    if idx(end) > length(col_idx)
-        col_idx = [col_idx; zeros((node_count - i) * (code_count + c), 1)];
-        row_idx = [row_idx; zeros((node_count - i) * (code_count + c), 1)];
-        vals = [vals; zeros((node_count - i) * (code_count + c), 1)];
-    end
-    col_idx(idx) = Z(:);
-    row_idx(idx) = ones(length(idx), 1) * i;
-    vals(idx) = edge_feat(Z);
-    ind = ind + length(idx);
-end
-if ind < length(row_idx)
-    row_idx(ind + 1 : end) = [];
-    col_idx(ind + 1 : end) = [];
-    vals(ind + 1 : end) = [];
+    edge_feats(i, :) = full(weighted_pooling(...
+        ES(flg2, :), edge_weights(i, flg2), params.pooling_mode));
 end
 
-edge_feats = sparse(row_idx, col_idx, vals, ...
-    node_count, m * params.edge_type_count);
 end
 
 function f = weighted_pooling(feats, weights, mode)
@@ -100,7 +76,6 @@ function f = weighted_pooling(feats, weights, mode)
 % Options for mode:
 %     1:    max pooling.
 %     2:    sum pooling (average pooling).
-keyboard;
 feats = bsxfun(@times, feats, weights(:));
 
 if mode == 1

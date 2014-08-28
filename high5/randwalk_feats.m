@@ -1,5 +1,5 @@
-function [node_feats, edge_feats, node_weights, edge_weights] = ...
-    randwalk_feats(RS, PS, G,  params, node_weights, edge_weights)
+function [node_feats, edge_feats] = randwalk_feats(RS, PS, G, ...
+    node_weights, edge_weights, edge_code_idx, params)
 % Generate feature vectors from subgraphs centered on each graph node.
 [n1, cr] = size(RS);
 [n2, cp] = size(PS);
@@ -39,10 +39,14 @@ for i = 1 : edge_count
     ei = edge_type_idx(abs(G(e1(i), e2(i))));  
     [X, Y] = meshgrid(CI{e1(i)}, CI{e2(i)});
     Z = sub2ind([code_count, code_count], X(:), Y(:));
-    idx = ind + [1 : length(Z)];
-    col_idx(idx) = Z(:) + (ei - 1) * m;
+    [~, ia, ib] = intersect(edge_code_idx, Z + (ei - 1) * m);
+    if isempty(ia)
+        continue;
+    end
+    idx = ind + [1 : length(ia)];
+    col_idx(idx) = ia(:);
     row_idx(idx) = ones(length(idx), 1) * i;
-    edge_score(idx) = min(S(e1(i), X(:)), S(e2(i), Y(:)));
+    edge_score(idx) = min(S(e1(i), X(ib)), S(e2(i), Y(ib)));
     ind = ind + length(idx);
 end
 if ind < length(row_idx)
@@ -51,14 +55,11 @@ if ind < length(row_idx)
     edge_score(ind + 1 : end) = [];
 end
 ES = sparse(row_idx, col_idx, edge_score, ...
-    edge_count, m * edge_type_count);
+    edge_count, length(edge_code_idx));
 
 % Generates feature vector for each subgraph.
 node_feats = zeros(node_count, code_count);
-row_idx = zeros(node_count * 3 * c, 1);
-col_idx = row_idx; 
-vals = row_idx;
-ind = 0;
+edge_feats = zeros(node_count, length(edge_code_idx));
 for i = 1:node_count
     flg = node_weights(i, :) > 0;
     if sum(flg) < 2
@@ -71,30 +72,10 @@ for i = 1:node_count
     if ~any(flg2)
         continue;
     end
-    flg3 = sum(ES(flg2, :) > 0, 1) > 0;
-    edge_feat = weighted_pooling(...
-        ES(flg2, flg3), edge_weights(i, flg2), params.pooling_mode);
-    
-    Z = find(flg3);
-    idx = ind + [1 : length(Z)]';
-    while idx(end) > length(col_idx)
-        col_idx = [col_idx; zeros((node_count - i) * 3 * c, 1)];
-        row_idx = [row_idx; zeros((node_count - i) * 3 * c, 1)];
-        vals = [vals; zeros((node_count - i) * 3 * c, 1)];
-    end
-    col_idx(idx) = Z(:);
-    row_idx(idx) = ones(length(idx), 1) * i;
-    vals(idx) = edge_feat;
-    ind = ind + length(idx);
-end
-if ind < length(row_idx)
-    row_idx(ind + 1 : end) = [];
-    col_idx(ind + 1 : end) = [];
-    vals(ind + 1 : end) = [];
+    edge_feats(i, :) = full(weighted_pooling(...
+        ES(flg2, :), edge_weights(i, flg2), params.pooling_mode));
 end
 
-edge_feats = sparse(row_idx, col_idx, vals, ...
-    node_count, m * edge_type_count);
 end
 
 function f = weighted_pooling(feats, weights, mode)
