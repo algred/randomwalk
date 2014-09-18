@@ -7,6 +7,7 @@ poselet150_path = [output_root filesep 'poselet150'];
 object_path = [output_root filesep 'objects_with_part'];
 graph_path = [output_root filesep 'graph'];
 randw_feat_path = [output_root filesep 'randw_feats'];
+sift_path = [output_root filesep 'sift'];
 
 % Selected object categories from pre-trained R-CNN object detectors.
 obj_idx = [8, 22, 23, 24, 27, 29, 30, 37, 38, 42, 43, 47, 48, 54, 57, ...
@@ -31,14 +32,14 @@ graph_params.APART_OVERLAP = 3;
 graph_params.APART_ABOVE = 4;
 graph_params.overlap_thresh_ratio = 0.05;
 graph_params.neighbor_K = 6;
-graph_params.subgraph_radius = 4;
+graph_params.subgraph_radius = 2;
 
 NUM_POSELETS = 150;
 bbox_overlap_ratio_thresh = 0.7;
 obj_det_score_thresh = 0.35;
 poselet_det_score_threh = 0.05;
 
-randw_params.pooling_mode = 2;
+randw_params.pooling_mode = 1;
 randw_params.code_score_thresh = 0.2;
 randw_params.edge_count_perclass = 200;
 randw_params.code_count = NUM_POSELETS + length(obj_idx);

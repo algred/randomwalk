@@ -6,11 +6,11 @@ init_high5;
 %
 % =========================================================================
 randw_params.code_score_thresh = 0.2;
-randw_params.pooling_mode = 2;
+randw_params.pooling_mode = 1;
 ncls = 4;
 load(['data' filesep 'selected_edge_codes.mat']);
 parfor vid = 1:length(video_list)
-    if ~exist([randw_feat_path filesep num2str(vid) '_rf.mat'], 'file')
+    if ~exist([randw_feat_path filesep num2str(vid) '_rf_maxpool.mat'], 'file')
         graph = load([graph_path filesep num2str(vid) '_graph.mat']);
         gw = load([graph_path filesep num2str(vid) '_gw.mat']);
         
@@ -26,12 +26,12 @@ parfor vid = 1:length(video_list)
         end
         
         save_randwalk_feats([randw_feat_path filesep num2str(vid) ...
-            '_rf.mat'], node_feats, edge_feats);
+            '_rf_maxpool.mat'], node_feats, edge_feats);
     end
     
     % Generates random walk features of fliped training videos.
     if used_for_training(vid) > 0 && ~exist([randw_feat_path filesep ...
-            num2str(vid) '_rf_flip.mat'], 'file')
+            num2str(vid) '_rf_maxpool_flip.mat'], 'file')
         graph = load([graph_path filesep num2str(vid) '_graph_flip.mat']);
         gw = load([graph_path filesep num2str(vid) '_gw_flip.mat']);
         
@@ -47,6 +47,6 @@ parfor vid = 1:length(video_list)
         end
         
         save_randwalk_feats([randw_feat_path filesep num2str(vid) ...
-            '_rf_flip.mat'], node_feats, edge_feats);
+            '_rf_maxpool_flip.mat'], node_feats, edge_feats);
     end
 end

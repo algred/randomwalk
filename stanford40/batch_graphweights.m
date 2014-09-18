@@ -3,7 +3,7 @@ init_stanford40;
 parfor i = 1:length(annotation)
     try
         [~, imname, ext] = fileparts(annotation{i}.imageName);
-        if exist([graph_path filesep imname '_gw.mat'], 'file') || ...
+        if exist([graph_path filesep imname '_gw' sfx '.mat'], 'file') || ...
                 i == 2376 || i == 2377
             continue;
         end
@@ -13,7 +13,7 @@ parfor i = 1:length(annotation)
             graph.G, graph_params.subgraph_radius);
         
         % Saves the generated graph.
-        save_graphweights([graph_path filesep imname '_gw.mat'], ...
+        save_graphweights([graph_path filesep imname '_gw' sfx '.mat'], ...
             node_weights, edge_weights);
     catch exception
         getReport(exception)
