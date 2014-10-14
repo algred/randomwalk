@@ -13,6 +13,7 @@ edge_type_idx(params.edge_types) = 1 : edge_type_count;
 
 % Counts the appearance times of edge codes.
 count = zeros(1, code_count * code_count * edge_type_count);
+
 for i = 1 : edge_count
     ei = edge_type_idx(abs(G(e1(i), e2(i))));  
     id = sub2ind([code_count, code_count], L(e1(i)), L(e2(i))) + (ei - 1) * m;

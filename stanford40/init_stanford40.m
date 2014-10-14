@@ -6,8 +6,11 @@ poselet_path = [output_root filesep 'poselets'];
 poselet150_path = [output_root filesep 'poselet150'];
 object_path = [output_root filesep 'objects_with_part'];
 graph_path = [output_root filesep 'graph'];
-randw_feat_path = [output_root filesep 'randw_feats'];
+graphweight_path = ['/research/action_videos/image_data/stanford40/graphweight'];
+randw_feat_path = ['/research/action_videos/image_data/stanford40/randw_feats'];
 sift_path = [output_root filesep 'sift'];
+edgebox_path = ['/research/action_videos/image_data/stanford40/edgebox'];
+model_path = ['/research/action_videos/image_data/stanford40/model']
 
 % Selected object categories from pre-trained R-CNN object detectors.
 obj_idx = [8, 22, 23, 24, 27, 29, 30, 37, 38, 42, 43, 47, 48, 54, 57, ...
@@ -19,7 +22,7 @@ obj_cat_flg = obj_cat_flg > 0;
 obj_idx_map(obj_idx) = 1:length(obj_idx);
 
 % Paths to code.
-addpath(pathstring('Y:\backed_up\randomwalk'));
+addpath(pathstring('~/research/randomwalk'));
 addpath(pathstring('Y:\code\poselets_matlab_april2013\detector\poselet_detection'));
 
 % Loads annotations and splits.
@@ -32,7 +35,7 @@ graph_params.APART_OVERLAP = 3;
 graph_params.APART_ABOVE = 4;
 graph_params.overlap_thresh_ratio = 0.05;
 graph_params.neighbor_K = 6;
-graph_params.subgraph_radius = 2;
+graph_params.subgraph_radius = 3;
 
 NUM_POSELETS = 150;
 bbox_overlap_ratio_thresh = 0.7;

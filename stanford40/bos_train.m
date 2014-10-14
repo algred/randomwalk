@@ -9,26 +9,30 @@ addpath(genpath('/research/wvaction/tools/vlfeat-0.9.16-bin/vlfeat-0.9.16/toolbo
 % =========================================================================
 ncls = 40;
 
+sfx = '_maxpool';
 % Loads data.
-load(['data' filesep encoding_name]);
+% load(['data' filesep encoding_name]);
+load([randw_feat_path filesep 'bos_encoding' sfx '.mat']);
+F(2376:2377, :) = [];
+used_for_training(2376:2377) = [];
+class_labels(2376:2377) = [];
 f = any(F, 2);
-X_train = F(f & used_for_training > 0, :);
-X_test = F(f & used_for_training < 1, :);
+X_train = exp(-F(f & used_for_training > 0, :));
+X_test = exp(-F(f & used_for_training < 1, :));
 L_train = class_labels(f & used_for_training > 0);
 L_test = class_labels(f & used_for_training < 1);
 
 % Trains and evaluates linear SVM.
-% multiclass_svm = 1;
+multiclass_svm = 0;
 
 if ~multiclass_svm
    min_f = min(X_train); max_f = max(X_train);
    X_train = (X_train - repmat(min_f, size(X_train, 1), 1)) ./ ...
-       repmat(max_f + eps, size(X_train, 1), 1);
+       repmat(max_f - min_f + eps, size(X_train, 1), 1);
    X_test= (X_test- repmat(min_f, size(X_test, 1), 1)) ./ ...
-       repmat(max_f + eps, size(X_test, 1), 1);
+       repmat(max_f - min_f + eps, size(X_test, 1), 1);
    
-   %c = 2.^[-10:10];
-   c = 2.^[11: 15];
+   c = 2.^[-10: 10];
    test_acc = zeros(length(c));
    AP = zeros(length(c), ncls);
    for i = 1:length(c)
@@ -60,10 +64,10 @@ if multiclass_svm
     
     min_f = min(X_train); max_f = max(X_train);
     X_train = (X_train - repmat(min_f, size(X_train, 1), 1)) ./ ...
-        repmat(max_f + eps, size(X_train, 1), 1);
+        repmat(max_f - minf + eps, size(X_train, 1), 1);
     
     X_test= (X_test- repmat(min_f, size(X_test, 1), 1)) ./ ...
-        repmat(max_f + eps, size(X_test, 1), 1);
+        repmat(max_f - minf + eps, size(X_test, 1), 1);
  
     wstr = [];
     for cid = 1:ncls

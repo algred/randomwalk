@@ -23,17 +23,16 @@ for id = 1:length(annotation)
     label = class_labels(id);
     
     c = edge_code_counts(graph.G, graph.L, randw_params);
-    count(label, :) = count(label, :) + c;
+    count(label, :) = count(label, :) + (c > 0);
 end
-save(['data' filesep 'edge_code_count.mat'], 'count');
 
+% Selects edge codes that are frequent in positive class and have
+% low appearance entropy accross different classes.
 edge_idx = cell(1, ncls);
 for cid = 1:ncls
-    % Selects edge codes that are frequent in positive class. 
     [~, idx] = sort(count(cid, :), 'descend');
-    idx1 = idx(1 : (randw_params.edge_count_perclass * 10));
+    idx1 = idx(1 : (randw_params.edge_count_perclass * 20));
     
-    % Selects from the selected edge codes that have small entropy.
     P = count(:, idx1) ./ repmat(sum(count(:, idx1), 1), ncls, 1);
     p = -sum(P .* log(P + eps), 1);
     [~, idx2] = sort(p, 'ascend');
@@ -41,19 +40,5 @@ for cid = 1:ncls
     edge_idx{cid} = idx3(1:randw_params.edge_count_perclass);
 end
 
-edge_idx2 = cell(1, ncls);
-for cid = 1:ncls
-    % Selects edge codes that are frequent in positive class. 
-    [~, idx] = sort(count(cid, :), 'descend');
-    idx1 = idx(1 : (randw_params.edge_count_perclass * 30));
-    
-    % Selects from the selected edge codes that have small entropy.
-    P = count(:, idx1) ./ repmat(sum(count(:, idx1), 1), ncls, 1);
-    p = -sum(P .* log(P + eps), 1);
-    [~, idx2] = sort(p, 'ascend');
-    idx3 = idx1(idx2);
-    edge_idx2{cid} = idx3(1:randw_params.edge_count_perclass);
-end
-
-edge_idx = unique([cell2mat(edge_idx) cell2mat(edge_idx2)]);
-save(['data' filesep 'selected_edge_codes.mat'], 'edge_idx');
+edge_idx = unique(cell2mat(edge_idx));
+save([model_path filesep 'selected_edge_codes.mat'], 'edge_idx');

@@ -7,7 +7,8 @@ init_stanford40;
 % =========================================================================
 
 % Loads data.
-load(['data' filesep codebook_name '.mat']);
+sfx = '_maxpool';
+load([randw_feat_path filesep 'bos' sfx '.mat']);
 C = cell2mat(C);
 
 % Encoding.
@@ -30,5 +31,5 @@ parfor i = 1:length(annotation)
     F(i, :) = min(pdist2(X, C), [], 1);
 end
 
-save(['data' filesep encoding_name], 'F');
+save([randw_feat_path filesep 'bos_encoding' sfx], 'F');
 
